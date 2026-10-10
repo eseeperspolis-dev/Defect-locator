@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>موقعیت عیب در پک</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f766e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="عیب در پک">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<style>
+:root{--bg:#f3f5f6;--card:#fff;--text:#1c1f26;--muted:#6b7280;--accent:#0f766e;--accent-text:#fff;--border:#d9dde3;--res:#e8f6f4;--err:#b42318;--errbg:#fdecea;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111416;--card:#1a1e21;--text:#eceef2;--muted:#9aa1ad;--accent:#2dd4bf;--accent-text:#06201c;--border:#2b3236;--res:#16302d;--err:#ff8a80;--errbg:#3a1b19}}
+:root[data-theme="dark"]{--bg:#111416;--card:#1a1e21;--text:#eceef2;--muted:#9aa1ad;--accent:#2dd4bf;--accent-text:#06201c;--border:#2b3236;--res:#16302d;--err:#ff8a80;--errbg:#3a1b19}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Vazirmatn,Tahoma,"Segoe UI",sans-serif;display:flex;justify-content:center;padding:14px}
+.wrap{width:100%;max-width:460px}
+h1{font-size:19px;margin:6px 0 14px;text-align:center}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:5px}
+input{width:100%;padding:11px;font:inherit;font-size:17px;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:10px;direction:ltr;text-align:right}
+input:focus{outline:2px solid var(--accent);border-color:transparent}
+.full{grid-column:1/-1}
+.sum{font-size:13px;color:var(--muted);margin-top:10px;line-height:1.9}
+.sum b{color:var(--text)}
+.dh{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-weight:600;font-size:14px}
+.rm{background:none;border:none;color:var(--err);font:inherit;font-size:13px;cursor:pointer;padding:4px}
+.res{margin-top:12px;padding:12px;border-radius:12px;background:var(--res);font-size:14px;line-height:1.9}
+.res .big{font-size:17px;font-weight:700}
+.res ul{margin:6px 0 0;padding:0 18px}
+.err{background:var(--errbg);color:var(--err)}
+.add{width:100%;padding:12px;border:1px dashed var(--accent);background:none;color:var(--accent);border-radius:12px;font:inherit;font-size:15px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>موقعیت عیب در پک (از تاج کلاف)</h1>
+
+<div class="card">
+<div class="grid">
+<div class="full"><label>طول کل کلاف (متر)</label><input id="tl" inputmode="decimal" autocomplete="off"></div>
+<div><label>طول هر شیت (میلی‌متر)</label><input id="sl" inputmode="decimal" autocomplete="off"></div>
+<div><label>تعداد شیت در هر پک</label><input id="np" inputmode="numeric" autocomplete="off"></div>
+</div>
+<div class="sum" id="sum"></div>
+</div>
+
+<div id="list"></div>
+<button class="add" id="add">+ افزودن عیب</button>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const norm=s=>s.replace(/[۰-۹]/g,d=>"۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[٫,،]/g,".").replace(/[٬\s]/g,"");
+const num=v=>{const n=parseFloat(norm(v||""));return isNaN(n)?null:n};
+const fa=n=>Number(n).toLocaleString("fa-IR",{useGrouping:false,maximumFractionDigits:2});
+let count=0;
+
+function params(){
+  const T=num($("tl").value),L=num($("sl").value),N=num($("np").value);
+  if(T==null||L==null||N==null||T<=0||L<=0||N<1) return null;
+  const Tmm=Math.round(T*1000),Lmm=L,Nn=Math.floor(N);
+  const sheets=Math.floor(Tmm/Lmm+1e-9);
+  const packs=Math.ceil(sheets/Nn);
+  const last=sheets-(packs-1)*Nn;
+  const rest=(Tmm-sheets*Lmm)/1000;
+  return {Tmm,L:Lmm,N:Nn,sheets,packs,last,rest};
+}
+
+function summary(){
+  const P=params(),el=$("sum");
+  if(!P){el.innerHTML="";return}
+  el.innerHTML=`تعداد شیت کامل: <b>${fa(P.sheets)}</b> — تعداد پک: <b>${fa(P.packs)}</b><br>`+
+    `شیت‌های پک آخر: <b>${fa(P.last)}</b> — باقی‌مانده انتهای کلاف: <b>${fa(P.rest)}</b> متر`;
+}
+
+function analyze(sv,ev,P){
+  const s0=num(sv),e0=num(ev);
+  if(s0==null||e0==null) return {t:""};
+  if(!P) return {t:"ابتدا طول کلاف، طول شیت و تعداد شیت در پک را وارد کنید.",err:1};
+  const s=Math.round(s0*1000),e=Math.round(e0*1000);
+  if(s<0||e<0) return {t:"موقعیت نمی‌تواند منفی باشد.",err:1};
+  if(e<s) return {t:"انتهای عیب باید از ابتدای آن بیشتر یا برابر باشد.",err:1};
+  if(e>P.Tmm) return {t:"موقعیت عیب از طول کل کلاف بیشتر است.",err:1};
+  let s1=Math.floor(s/P.L+1e-9)+1;
+  let e1=e>s?Math.ceil(e/P.L-1e-9):s1;
+  if(e1<s1)e1=s1;
+  if(s1>P.sheets) return {t:"این عیب در باقی‌مانده انتهای کلاف (بعد از آخرین شیت کامل) قرار دارد و وارد پک نمی‌شود."};
+  const clipped=e1>P.sheets;
+  if(clipped)e1=P.sheets;
+  const p1=Math.ceil(s1/P.N),p2=Math.ceil(e1/P.N);
+  const range=(a,b)=>a===b?`${fa(a)}`:`${fa(a)} تا ${fa(b)}`;
+  let h=`<div class="big">پک ${range(p1,p2)}</div>`;
+  h+=`شیت ${range(s1,e1)} از کلاف (${fa(e1-s1+1)} شیت)`;
+  h+="<ul>";
+  const max=15;let shown=0;
+  for(let p=p1;p<=p2;p++){
+    if(shown++>=max){h+=`<li>…</li>`;break}
+    const a=Math.max(s1,(p-1)*P.N+1),b=Math.min(e1,p*P.N);
+    const ia=a-(p-1)*P.N,ib=b-(p-1)*P.N;
+    h+=`<li>پک ${fa(p)}: شیت ${range(ia,ib)} از پک</li>`;
+  }
+  h+="</ul>";
+  if(clipped)h+="بخشی از عیب در باقی‌مانده انتهای کلاف است.";
+  return {t:h};
+}
+
+function refresh(){
+  const P=params();summary();
+  document.querySelectorAll(".defect").forEach(d=>{
+    const r=analyze(d.querySelector(".ds").value,d.querySelector(".de").value,P);
+    const out=d.querySelector(".out");
+    out.innerHTML=r.t;
+    out.className="out"+(r.t?" res":"")+(r.err?" err":"");
+  });
+}
+
+function addDefect(){
+  count++;
+  const d=document.createElement("div");
+  d.className="card defect";
+  d.innerHTML=`<div class="dh"><span class="title"></span><button class="rm">حذف</button></div>
+  <div class="grid">
+  <div><label>ابتدای عیب از تاج (متر)</label><input class="ds" inputmode="decimal" autocomplete="off"></div>
+  <div><label>انتهای عیب از تاج (متر)</label><input class="de" inputmode="decimal" autocomplete="off"></div>
+  </div><div class="out"></div>`;
+  d.querySelector(".rm").onclick=()=>{d.remove();renumber();};
+  d.querySelectorAll("input").forEach(i=>i.addEventListener("input",refresh));
+  $("list").appendChild(d);renumber();
+}
+function renumber(){
+  const ds=document.querySelectorAll(".defect");
+  ds.forEach((d,i)=>{d.querySelector(".title").textContent="عیب "+fa(i+1);
+    d.querySelector(".rm").style.display=ds.length>1?"":"none"});
+}
+["tl","sl","np"].forEach(id=>$(id).addEventListener("input",refresh));
+$("add").onclick=addDefect;
+addDefect();
+if("serviceWorker" in navigator){window.addEventListener("load",()=>{navigator.serviceWorker.register("sw.js").catch(()=>{})})}
+</script>
+</body>
+</html>
