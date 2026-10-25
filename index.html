@@ -35,12 +35,20 @@ input:focus{outline:2px solid var(--accent);border-color:transparent}
 .res .big{font-size:17px;font-weight:700}
 .res ul{margin:6px 0 0;padding:0 18px}
 .err{background:var(--errbg);color:var(--err)}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:4px;margin-bottom:12px}
+.seg button{padding:10px;border:none;border-radius:9px;background:none;color:var(--muted);font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.seg button.on{background:var(--accent);color:var(--accent-text)}
+.conv{font-size:12.5px;color:var(--muted);margin-bottom:6px}
 .add{width:100%;padding:12px;border:1px dashed var(--accent);background:none;color:var(--accent);border-radius:12px;font:inherit;font-size:15px;cursor:pointer}
 </style>
 </head>
 <body>
 <div class="wrap">
-<h1>موقعیت عیب در پک (از تاج کلاف)</h1>
+<h1 id="ttl">موقعیت عیب در پک</h1>
+<div class="seg" id="seg">
+<button type="button" data-m="crown" class="on">متراژ از تاج</button>
+<button type="button" data-m="eye">متراژ از چشمی</button>
+</div>
 
 <div class="card">
 <div class="grid">
@@ -61,6 +69,14 @@ const norm=s=>s.replace(/[۰-۹]/g,d=>"۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace
 const num=v=>{const n=parseFloat(norm(v||""));return isNaN(n)?null:n};
 const fa=n=>Number(n).toLocaleString("fa-IR",{useGrouping:false,maximumFractionDigits:2});
 let count=0;
+let mode="crown";
+try{const m=localStorage.getItem("dp-mode");if(m==="eye"||m==="crown")mode=m}catch(_){}
+const refName=()=>mode==="eye"?"چشمی":"تاج";
+function applyMode(){
+  document.querySelectorAll("#seg button").forEach(b=>b.classList.toggle("on",b.dataset.m===mode));
+  $("ttl").textContent="موقعیت عیب در پک (از "+refName()+" کلاف)";
+  document.querySelectorAll(".defect").forEach(d=>{d.style.display=d.dataset.mode===mode?"":"none"});
+}
 
 function params(){
   const T=num($("tl").value),L=num($("sl").value),N=num($("np").value);
@@ -80,7 +96,7 @@ function summary(){
     `شیت‌های پک آخر: <b>${fa(P.last)}</b> — باقی‌مانده انتهای کلاف: <b>${fa(P.rest)}</b> متر`;
 }
 
-function analyze(sv,ev,P){
+function analyze(sv,ev,P,mode){
   const s0=num(sv),e0=num(ev);
   if(s0==null||e0==null) return {t:""};
   if(!P) return {t:"ابتدا طول کلاف، طول شیت و تعداد شیت در پک را وارد کنید.",err:1};
@@ -88,15 +104,20 @@ function analyze(sv,ev,P){
   if(s<0||e<0) return {t:"موقعیت نمی‌تواند منفی باشد.",err:1};
   if(e<s) return {t:"انتهای عیب باید از ابتدای آن بیشتر یا برابر باشد.",err:1};
   if(e>P.Tmm) return {t:"موقعیت عیب از طول کل کلاف بیشتر است.",err:1};
-  let s1=Math.floor(s/P.L+1e-9)+1;
-  let e1=e>s?Math.ceil(e/P.L-1e-9):s1;
+  let cs=s,ce=e,pre="";
+  if(mode==="eye"){
+    cs=P.Tmm-e;ce=P.Tmm-s;
+    pre=`<div class="conv">معادل از تاج: ${fa(cs/1000)} تا ${fa(ce/1000)} متر</div>`;
+  }
+  let s1=Math.floor(cs/P.L+1e-9)+1;
+  let e1=ce>cs?Math.ceil(ce/P.L-1e-9):s1;
   if(e1<s1)e1=s1;
   if(s1>P.sheets) return {t:"این عیب در باقی‌مانده انتهای کلاف (بعد از آخرین شیت کامل) قرار دارد و وارد پک نمی‌شود."};
   const clipped=e1>P.sheets;
   if(clipped)e1=P.sheets;
   const p1=Math.ceil(s1/P.N),p2=Math.ceil(e1/P.N);
   const range=(a,b)=>a===b?`${fa(a)}`:`${fa(a)} تا ${fa(b)}`;
-  let h=`<div class="big">پک ${range(p1,p2)}</div>`;
+  let h=pre+`<div class="big">پک ${range(p1,p2)}</div>`;
   h+=`شیت ${range(s1,e1)} از کلاف (${fa(e1-s1+1)} شیت)`;
   h+="<ul>";
   const max=15;let shown=0;
@@ -114,34 +135,42 @@ function analyze(sv,ev,P){
 function refresh(){
   const P=params();summary();
   document.querySelectorAll(".defect").forEach(d=>{
-    const r=analyze(d.querySelector(".ds").value,d.querySelector(".de").value,P);
+    const r=analyze(d.querySelector(".ds").value,d.querySelector(".de").value,P,d.dataset.mode);
     const out=d.querySelector(".out");
     out.innerHTML=r.t;
     out.className="out"+(r.t?" res":"")+(r.err?" err":"");
   });
 }
 
-function addDefect(){
-  count++;
+function addDefect(m){
+  const nm=m==="eye"?"چشمی":"تاج";
   const d=document.createElement("div");
   d.className="card defect";
+  d.dataset.mode=m;
   d.innerHTML=`<div class="dh"><span class="title"></span><button class="rm">حذف</button></div>
   <div class="grid">
-  <div><label>ابتدای عیب از تاج (متر)</label><input class="ds" inputmode="decimal" autocomplete="off"></div>
-  <div><label>انتهای عیب از تاج (متر)</label><input class="de" inputmode="decimal" autocomplete="off"></div>
+  <div><label>ابتدای عیب از ${nm} (متر)</label><input class="ds" inputmode="decimal" autocomplete="off"></div>
+  <div><label>انتهای عیب از ${nm} (متر)</label><input class="de" inputmode="decimal" autocomplete="off"></div>
   </div><div class="out"></div>`;
   d.querySelector(".rm").onclick=()=>{d.remove();renumber();};
   d.querySelectorAll("input").forEach(i=>i.addEventListener("input",refresh));
-  $("list").appendChild(d);renumber();
+  $("list").appendChild(d);renumber();applyMode();
 }
 function renumber(){
-  const ds=document.querySelectorAll(".defect");
-  ds.forEach((d,i)=>{d.querySelector(".title").textContent="عیب "+fa(i+1);
-    d.querySelector(".rm").style.display=ds.length>1?"":"none"});
+  ["crown","eye"].forEach(m=>{
+    const ds=[...document.querySelectorAll(".defect")].filter(d=>d.dataset.mode===m);
+    ds.forEach((d,i)=>{d.querySelector(".title").textContent="عیب "+fa(i+1);
+      d.querySelector(".rm").style.display=ds.length>1?"":"none"});
+  });
 }
 ["tl","sl","np"].forEach(id=>$(id).addEventListener("input",refresh));
-$("add").onclick=addDefect;
-addDefect();
+$("add").onclick=()=>addDefect(mode);
+document.querySelectorAll("#seg button").forEach(b=>b.onclick=()=>{
+  mode=b.dataset.m;
+  try{localStorage.setItem("dp-mode",mode)}catch(_){}
+  applyMode();refresh();
+});
+addDefect("crown");addDefect("eye");applyMode();
 if("serviceWorker" in navigator){window.addEventListener("load",()=>{navigator.serviceWorker.register("sw.js").catch(()=>{})})}
 </script>
 </body>
